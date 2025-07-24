@@ -116,6 +116,35 @@ def delete_subscription(id):
     flash('Subscription deleted successfully!', 'success')
     return redirect(url_for('index'))
 
+@app.route('/paid/<int:id>', methods=['POST'])
+def paid_subscription(id):
+    subscription = Subscription.query.get_or_404(id)
+    # Move next_renewal to the next billing cycle
+    if subscription.billing_cycle == 'monthly':
+        # Add one month, handle year wrap and month overflow
+        year = subscription.next_renewal.year + (subscription.next_renewal.month // 12)
+        month = (subscription.next_renewal.month % 12) + 1
+        day = subscription.next_renewal.day
+        # Handle last day of month edge case
+        try:
+            new_date = subscription.next_renewal.replace(year=year, month=month, day=day)
+        except ValueError:
+            # If the next month doesn't have this day, use the last day of the month
+            import calendar
+            last_day = calendar.monthrange(year, month)[1]
+            new_date = subscription.next_renewal.replace(year=year, month=month, day=last_day)
+        subscription.next_renewal = new_date
+    elif subscription.billing_cycle == 'yearly':
+        try:
+            subscription.next_renewal = subscription.next_renewal.replace(year=subscription.next_renewal.year + 1)
+        except ValueError:
+            # Handle Feb 29 -> Feb 28 on non-leap years
+            subscription.next_renewal = subscription.next_renewal.replace(year=subscription.next_renewal.year + 1, day=28)
+    subscription.updated_at = datetime.utcnow()
+    db.session.commit()
+    flash('Subscription marked as paid and moved to next billing cycle!', 'success')
+    return redirect(url_for('index'))
+
 @app.route('/api/subscriptions')
 def api_subscriptions():
     subscriptions = Subscription.query.all()
