@@ -1,0 +1,208 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Subscription Monitor{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h1 class="display-5 mb-3">
+            <i class="fas fa-chart-line me-2"></i>Subscription Dashboard
+        </h1>
+    </div>
+</div>
+
+<!-- Monthly Totals Section -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card total-card">
+            <div class="card-body">
+                <h5 class="card-title">
+                    <i class="fas fa-calendar-alt me-2"></i>This Month's Subscriptions
+                </h5>
+                <div class="row">
+                    {% if totals.USD > 0 or totals.EUR > 0 or totals.ILS > 0 %}
+                        {% if totals.USD > 0 %}
+                            <div class="col-md-4">
+                                <div class="text-center">
+                                    <h3 class="mb-1">${{ "%.2f"|format(totals.USD) }}</h3>
+                                    <small>USD</small>
+                                </div>
+                            </div>
+                        {% endif %}
+                        {% if totals.EUR > 0 %}
+                            <div class="col-md-4">
+                                <div class="text-center">
+                                    <h3 class="mb-1">€{{ "%.2f"|format(totals.EUR) }}</h3>
+                                    <small>EUR</small>
+                                </div>
+                            </div>
+                        {% endif %}
+                        {% if totals.ILS > 0 %}
+                            <div class="col-md-4">
+                                <div class="text-center">
+                                    <h3 class="mb-1">₪{{ "%.2f"|format(totals.ILS) }}</h3>
+                                    <small>ILS</small>
+                                </div>
+                            </div>
+                        {% endif %}
+                    {% else %}
+                        <div class="col-12 text-center">
+                            <p class="mb-0">No subscriptions renewing this month</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Upcoming Renewals Section -->
+{% if upcoming_renewals %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card upcoming-card">
+            <div class="card-body">
+                <h5 class="card-title">
+                    <i class="fas fa-clock me-2"></i>Upcoming Renewals (Next 30 Days)
+                </h5>
+                <div class="row">
+                    {% for sub in upcoming_renewals %}
+                    <div class="col-md-6 col-lg-4 mb-3">
+                        <div class="card bg-light">
+                            <div class="card-body p-3">
+                                <h6 class="card-title mb-1">{{ sub.name }}</h6>
+                                <p class="card-text mb-1">
+                                    <small class="text-muted">
+                                        <i class="fas fa-calendar me-1"></i>
+                                        {{ sub.next_renewal.strftime('%B %d, %Y') }}
+                                    </small>
+                                </p>
+                                <p class="card-text mb-0">
+                                    <span class="badge bg-primary currency-badge">
+                                        {% if sub.currency == 'USD' %}${% elif sub.currency == 'EUR' %}€{% else %}₪{% endif %}
+                                        {{ "%.2f"|format(sub.cost) }}
+                                    </span>
+                                    <span class="badge bg-secondary currency-badge">{{ sub.billing_cycle }}</span>
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- All Subscriptions Section -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="fas fa-list me-2"></i>All Subscriptions
+                </h5>
+                <a href="{{ url_for('add_subscription') }}" class="btn btn-primary btn-sm">
+                    <i class="fas fa-plus me-1"></i>Add New
+                </a>
+            </div>
+            <div class="card-body">
+                {% if all_subscriptions %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Cost</th>
+                                <th>Billing Cycle</th>
+                                <th>Next Renewal</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for sub in all_subscriptions %}
+                            <tr class="subscription-card">
+                                <td>
+                                    <strong>{{ sub.name }}</strong>
+                                    {% if sub.next_renewal <= date.today() %}
+                                        <span class="badge bg-danger ms-2">Overdue</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="badge bg-primary currency-badge">
+                                        {% if sub.currency == 'USD' %}${% elif sub.currency == 'EUR' %}€{% else %}₪{% endif %}
+                                        {{ "%.2f"|format(sub.cost) }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="badge bg-secondary">{{ sub.billing_cycle }}</span>
+                                </td>
+                                <td>
+                                    <span class="{% if sub.next_renewal <= date.today() %}text-danger{% elif sub.next_renewal <= (date.today() + timedelta(days=7)) %}text-warning{% endif %}">
+                                        {{ sub.next_renewal.strftime('%B %d, %Y') }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <div class="btn-group btn-group-sm" role="group">
+                                        <a href="{{ url_for('edit_subscription', id=sub.id) }}" class="btn btn-outline-primary">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <button type="button" class="btn btn-outline-danger" 
+                                                onclick="confirmDelete({{ sub.id }}, '{{ sub.name }}')">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                    <h5 class="text-muted">No subscriptions yet</h5>
+                    <p class="text-muted">Add your first subscription to get started!</p>
+                    <a href="{{ url_for('add_subscription') }}" class="btn btn-primary">
+                        <i class="fas fa-plus me-1"></i>Add Subscription
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirm Delete</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete the subscription "<span id="subscriptionName"></span>"?</p>
+                <p class="text-danger"><small>This action cannot be undone.</small></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form id="deleteForm" method="POST" style="display: inline;">
+                    <button type="submit" class="btn btn-danger">Delete</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function confirmDelete(id, name) {
+    document.getElementById('subscriptionName').textContent = name;
+    document.getElementById('deleteForm').action = '/delete/' + id;
+    new bootstrap.Modal(document.getElementById('deleteModal')).show();
+}
+</script>
+{% endblock %} 
